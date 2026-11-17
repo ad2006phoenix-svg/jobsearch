@@ -1,0 +1,4 @@
+.DS_Store
+__pycache__/
+*.pyc
+# Private data never goes in this repo; it lives in ../job_search/pipeline

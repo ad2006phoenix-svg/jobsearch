@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Job Search Hub</title>
+<style>
+:root{
+  --bg:#f6f5f2; --surface:#ffffff; --surface-2:#f0eee9; --text:#1d1d1b; --muted:#6b6862; --border:#e2dfd8;
+  --accent:#2f5d50; --accent-ink:#ffffff; --accent-soft:#e3eee9;
+  --strong:#2f6b3f; --strong-bg:#e2f1e5; --good:#7a5a12; --good-bg:#f6ecd3; --fair:#5f5c56; --fair-bg:#ecebe7;
+  --warn:#9a3b1c; --warn-bg:#fbe9e1; --new:#1f4f8a; --new-bg:#e1ecf8;
+  --radius:12px; --shadow:0 1px 2px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161714; --surface:#1f201d; --surface-2:#282925; --text:#ecebe6; --muted:#a19e96; --border:#33342f;
+    --accent:#7fb8a4; --accent-ink:#10201b; --accent-soft:#22332d;
+    --strong:#8fd19e; --strong-bg:#1f3325; --good:#e2c27a; --good-bg:#3a3020; --fair:#b3b0a8; --fair-bg:#2c2c29;
+    --warn:#f0a084; --warn-bg:#3d241b; --new:#9cc3f0; --new-bg:#1c2a3d; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161714; --surface:#1f201d; --surface-2:#282925; --text:#ecebe6; --muted:#a19e96; --border:#33342f;
+  --accent:#7fb8a4; --accent-ink:#10201b; --accent-soft:#22332d;
+  --strong:#8fd19e; --strong-bg:#1f3325; --good:#e2c27a; --good-bg:#3a3020; --fair:#b3b0a8; --fair-bg:#2c2c29;
+  --warn:#f0a084; --warn-bg:#3d241b; --new:#9cc3f0; --new-bg:#1c2a3d; --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+header.top{padding:28px 0 8px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+h1{font-size:28px;line-height:1.2;margin:4px 0 0;font-weight:650}
+h2{font-size:20px;margin:0 0 4px;font-weight:650}
+h3{font-size:15px;margin:0 0 8px;font-weight:650}
+.muted{color:var(--muted)}
+.region{margin:6px 0 0;color:var(--muted);font-size:14px}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:16px 0 20px;overflow-x:auto;scrollbar-width:none}
+nav.tabs button{appearance:none;border:0;background:none;color:var(--muted);font:inherit;font-weight:550;padding:10px 14px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--accent)}
+nav.tabs button .n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--surface-2);font-size:12px;margin-right:6px}
+nav.tabs button[aria-selected="true"] .n{background:var(--accent);color:var(--accent-ink)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.pad{padding:20px}
+section[hidden],#app[hidden],#lock[hidden]{display:none}
+
+/* Lock screen */
+#lock{max-width:420px;margin:12vh auto 0}
+#lock form{display:grid;gap:12px}
+#lock input[type=password]{font:inherit;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text)}
+#lock input[type=password]:focus{outline:2px solid var(--accent);outline-offset:1px}
+#lock label.check{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
+.err{color:var(--warn);font-size:14px;min-height:1.2em}
+
+/* Tab 1 */
+.listhead{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.filters input,.filters select{font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text)}
+.joblist{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.job{display:grid;grid-template-columns:36px 1fr auto;gap:14px;align-items:center;padding:14px 16px;cursor:pointer;text-align:left;width:100%;font:inherit;color:inherit}
+.job:hover{border-color:var(--accent)}
+.job:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rank{font-size:18px;font-weight:650;color:var(--muted);text-align:center}
+.job .title{font-weight:650;font-size:16px}
+.job .meta{color:var(--muted);font-size:13.5px;display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:2px}
+.badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.badge{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.b-strong{background:var(--strong-bg);color:var(--strong)}
+.b-good{background:var(--good-bg);color:var(--good)}
+.b-fair{background:var(--fair-bg);color:var(--fair)}
+.b-new{background:var(--new-bg);color:var(--new)}
+.b-warn{background:var(--warn-bg);color:var(--warn)}
+.b-sel{background:var(--accent);color:var(--accent-ink)}
+.b-draft{background:var(--accent-soft);color:var(--accent)}
+.job.closed{opacity:.6}
+.divider{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:18px 0 2px}
+
+/* Tab 2 */
+.detail-head{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:start}
+.metagrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}
+.metagrid div{background:var(--surface-2);border-radius:10px;padding:10px 12px}
+.metagrid dt{font-size:12px;color:var(--muted)}
+.metagrid dd{margin:2px 0 0;font-weight:600}
+.posting{margin-top:18px;white-space:pre-wrap;overflow-wrap:anywhere}
+.fitnote{margin:0;background:var(--surface-2);border-radius:10px;padding:10px 12px;font-size:14px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.btn{appearance:none;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-weight:600;padding:9px 16px;border-radius:10px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Tab 3 */
+.draftgrid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
+.draftgrid .side{display:grid;gap:16px}
+textarea.letter{width:100%;min-height:620px;resize:vertical;border:1px solid var(--border);border-radius:10px;padding:16px;background:var(--surface);color:var(--text);font:15px/1.65 Georgia,"Times New Roman",serif}
+textarea.letter:focus{outline:2px solid var(--accent);outline-offset:1px}
+.cardhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.cardhead h3{margin:0}
+.skills{margin:0;padding-left:20px}
+.skills li{margin-bottom:6px}
+.consider h4{font-size:13px;margin:12px 0 4px;text-transform:uppercase;letter-spacing:.06em}
+.consider h4.s{color:var(--strong)} .consider h4.w{color:var(--warn)}
+.consider ul{margin:0;padding-left:18px}
+.status{font-size:13px;color:var(--muted)}
+.linkbtn{appearance:none;border:0;background:none;color:var(--accent);font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:0}
+
+/* Tab 4 */
+.actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:16px}
+.action{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:18px;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.action:hover:not(:disabled){border-color:var(--accent)}
+.action:disabled{cursor:not-allowed;opacity:.55}
+.action strong{font-size:15px}
+.action span{font-size:13.5px;color:var(--muted)}
+.empty{text-align:center;padding:48px 20px}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+footer{padding:32px 0;color:var(--muted);font-size:13px}
+
+@media (max-width:760px){
+  .draftgrid{grid-template-columns:1fr}
+  .job{grid-template-columns:28px 1fr}
+  .job .badges{grid-column:2;justify-content:flex-start}
+  textarea.letter{min-height:460px}
+  h1{font-size:23px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">Job Search Hub</p>
+    <h1 id="today-label">Today</h1>
+    <p class="region" id="updated-label">Within ~35 miles of Ann Arbor, plus remote jobs in Michigan</p>
+  </header>
+
+  <!-- Lock screen -->
+  <div id="lock" class="card pad" hidden>
+    <h2>Enter your passphrase</h2>
+    <p class="muted" style="margin-top:0">Your job list and cover letters are encrypted. They're unlocked here, in your browser.</p>
+    <form id="lock-form">
+      <input type="password" id="pass" autocomplete="current-password" aria-label="Passphrase" placeholder="Passphrase" required>
+      <label class="check"><input type="checkbox" id="remember" checked> Remember on this device</label>
+      <button class="btn primary" type="submit" id="unlock-btn">Unlock</button>
+      <div class="err" id="lock-err" role="alert"></div>
+    </form>
+  </div>
+
+  <div id="app" hidden>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" data-tab="jobs"><span class="n">1</span>Today's Jobs</button>
+      <button role="tab" data-tab="detail"><span class="n">2</span>Job Detail</button>
+      <button role="tab" data-tab="draft"><span class="n">3</span>Application Draft</button>
+      <button role="tab" data-tab="actions"><span class="n">4</span>Actions</button>
+    </nav>
+
+    <section id="tab-jobs" role="tabpanel">
+      <div class="listhead">
+        <div>
+          <h2>Jobs ranked by fit</h2>
+          <div class="muted" id="list-summary"></div>
+        </div>
+        <div class="filters">
+          <input type="search" id="q" placeholder="Search title or employer" aria-label="Search jobs">
+          <select id="view" aria-label="Which jobs">
+            <option value="all">All open jobs</option>
+            <option value="drafted">With drafts</option>
+            <option value="new">New today</option>
+          </select>
+        </div>
+      </div>
+      <ol class="joblist" id="joblist"></ol>
+    </section>
+    <section id="tab-detail" role="tabpanel" hidden></section>
+    <section id="tab-draft" role="tabpanel" hidden></section>
+    <section id="tab-actions" role="tabpanel" hidden></section>
+
+    <footer>Updated every morning from U-M Careers, State of Michigan, Washtenaw County, Livingston County CMH, CNS Healthcare, EMU and Washtenaw ISD. Jobs older than 30 days, part-time roles and closed postings are filtered out. Applied jobs are hidden on this device. <button class="linkbtn" id="lock-now">Lock</button></footer>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js" defer></script>
+<script>
+/* ---------- dates ---------- */
+const DAY = 864e5;
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const iso = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+const TODAY_ISO = iso(TODAY);
+const parse = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const daysFrom = s => Math.round((parse(s) - TODAY) / DAY);
+const fmt = s => parse(s).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- storage (per device) ---------- */
+const KEY = 'jsh-state-v2', PASS_KEY = 'jsh-pass';
+let state = { selected:null, viewing:null, applied:[], letters:{}, savedAt:{} };
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) state = { ...state, ...s }; } catch(e) {}
+function persist(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {} }
+
+/* ---------- data: encrypted file published by the daily run ---------- */
+let JOBS = [], UPDATED = null;
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function decrypt(enc, pass){
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({ name:'PBKDF2', salt:b64(enc.salt), iterations:enc.iter, hash:'SHA-256' },
+    base, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+  const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64(enc.iv) }, key, b64(enc.ct));
+  const text = enc.gzip
+    ? await new Response(new Blob([pt]).stream().pipeThrough(new DecompressionStream('gzip'))).text()
+    : new TextDecoder().decode(pt);
+  return JSON.parse(text);
+}
+let ENC = null;
+async function loadEnc(){
+  const r = await fetch('data/jobs.enc.json?t=' + Date.now(), { cache:'no-store' });
+  if (!r.ok) throw new Error('missing');
+  return r.json();
+}
+async function unlock(pass, remember){
+  const data = await decrypt(ENC, pass);
+  JOBS = data.jobs || []; UPDATED = data.updated;
+  if (remember){ try { localStorage.setItem(PASS_KEY, pass); } catch(e) {} }
+  document.getElementById('lock').hidden = true;
+  document.getElementById('app').hidden = false;
+  if (UPDATED){
+    document.getElementById('updated-label').textContent =
+      `Within ~35 miles of Ann Arbor, plus remote jobs in Michigan · Updated ${new Date(UPDATED).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}`;
+  }
+  show(location.hash.slice(1) || 'jobs');
+}
+function showLock(msg){
+  document.getElementById('app').hidden = true;
+  document.getElementById('lock').hidden = false;
+  document.getElementById('lock-err').textContent = msg || '';
+  document.getElementById('pass').focus();
+}
+document.getElementById('lock-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('unlock-btn'); btn.disabled = true; btn.textContent = 'Unlocking…';
+  try { await unlock(document.getElementById('pass').value.trim(), document.getElementById('remember').checked); }
+  catch(err){ showLock('That passphrase didn\'t work. Check it and try again.'); }
+  btn.disabled = false; btn.textContent = 'Unlock';
+});
+document.getElementById('lock-now').addEventListener('click', () => {
+  try { localStorage.removeItem(PASS_KEY); } catch(e) {}
+  JOBS = []; document.getElementById('pass').value = ''; showLock();
+});
+
+const byId = id => JOBS.find(j => j.id === id);
+const letterText = j => state.letters[j.id] ?? j.letter ?? '';
+const isClosed = j => j.closes && daysFrom(j.closes) < 0;
+
+/* ---------- ranking: fit, boosted for recent / closing soon; closed jobs sink ---------- */
+function rankScore(j){
+  if (isClosed(j)) return -1000 + (j.fit || 0);
+  let s = j.fit || 0;
+  if (j.posted && daysFrom(j.posted) >= -3) s += 4;
+  if (j.closes && daysFrom(j.closes) <= 7) s += 6;
+  return s;
+}
+const fitBadge = f => f >= 80 ? ['b-strong','Strong fit'] : f >= 65 ? ['b-good','Good fit'] : ['b-fair','Fair fit'];
+function postedText(j){
+  if (!j.posted) return 'Posted: Not listed';
+  const d = -daysFrom(j.posted);
+  return `Posted ${fmt(j.posted)} (${d <= 0 ? 'today' : d === 1 ? '1 day ago' : d + ' days ago'})`;
+}
+function closesText(j){
+  if (!j.closes) return 'Closes: Not listed';
+  const d = daysFrom(j.closes);
+  return d < 0 ? `Closed ${fmt(j.closes)}` : `Closes ${fmt(j.closes)} (${d === 0 ? 'today' : d + ' day' + (d === 1 ? '' : 's') + ' left'})`;
+}
+
+/* ---------- tabs ---------- */
+const TABS = ['jobs','detail','draft','actions'];
+function show(tab){
+  if (!TABS.includes(tab)) tab = 'jobs';
+  TABS.forEach(t => {
+    document.getElementById('tab-' + t).hidden = t !== tab;
+    document.querySelector(`[data-tab="${t}"]`).setAttribute('aria-selected', t === tab);
+  });
+  ({jobs:renderList, detail:renderDetail, draft:renderDraft, actions:renderActions})[tab]();
+  if (location.hash !== '#' + tab) history.replaceState(null, '', '#' + tab);
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => show(b.dataset.tab)));
+document.getElementById('q').addEventListener('input', renderList);
+document.getElementById('view').addEventListener('change', renderList);
+
+/* ---------- Tab 1 ---------- */
+function renderList(){
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const view = document.getElementById('view').value;
+  const open = JOBS.filter(j => !state.applied.includes(j.id));
+  let shown = open.filter(j => !q || (j.title + ' ' + j.employer).toLowerCase().includes(q));
+  if (view === 'drafted') shown = shown.filter(j => j.drafted);
+  if (view === 'new') shown = shown.filter(j => j.added === TODAY_ISO);
+  shown.sort((a,b) => rankScore(b) - rankScore(a));
+  const newCount = open.filter(j => j.added === TODAY_ISO).length;
+  const draftCount = open.filter(j => j.drafted && j.draft_date === TODAY_ISO).length;
+  document.getElementById('list-summary').textContent =
+    `${open.filter(j => !isClosed(j)).length} open jobs · ${newCount} new today · ${draftCount} drafted today`;
+  const ol = document.getElementById('joblist');
+  if (!shown.length){ ol.innerHTML = `<li class="card empty muted">${JOBS.length ? 'No jobs match.' : 'No jobs yet. New ones arrive after the 8am run.'}</li>`; return; }
+  let html = '', shownClosedDivider = false;
+  shown.forEach((j, i) => {
+    const closed = isClosed(j);
+    if (closed && !shownClosedDivider){ html += `<li class="divider">Past closing date</li>`; shownClosedDivider = true; }
+    const [cls, label] = fitBadge(j.fit || 0);
+    const badges = [
+      j.id === state.selected ? `<span class="badge b-sel">Selected</span>` : '',
+      j.drafted ? `<span class="badge b-draft">Draft ready</span>` : '',
+      j.added === TODAY_ISO ? `<span class="badge b-new">New today</span>` : '',
+      !closed && j.closes && daysFrom(j.closes) <= 7 ? `<span class="badge b-warn">Closing soon</span>` : '',
+      `<span class="badge ${cls}">${label} · ${j.fit ?? '–'}</span>`
+    ].join('');
+    html += `<li><button class="card job${closed ? ' closed' : ''}" data-id="${esc(j.id)}">
+      <div class="rank">${i + 1}</div>
+      <div>
+        <div class="title">${esc(j.title)}</div>
+        <div class="meta"><span>${esc(j.employer)}</span><span>${esc(j.location)}</span><span>${esc(j.salary || 'Not listed')}</span></div>
+        <div class="meta"><span>${postedText(j)}</span><span>${closesText(j)}</span></div>
+      </div>
+      <div class="badges">${badges}</div>
+    </button></li>`;
+  });
+  ol.innerHTML = html;
+  ol.querySelectorAll('.job').forEach(b => b.addEventListener('click', () => { state.viewing = b.dataset.id; persist(); show('detail'); }));
+}
+
+/* ---------- Tab 2 ---------- */
+function emptyState(msg){ return `<div class="card empty"><h2>Nothing here yet</h2><p class="muted">${msg}</p><button class="btn primary" onclick="show('jobs')">Go to Today's Jobs</button></div>`; }
+function renderDetail(){
+  const el = document.getElementById('tab-detail');
+  const j = byId(state.viewing) || byId(state.selected);
+  if (!j){ el.innerHTML = emptyState('Pick a job on Today\'s Jobs to see the full posting.'); return; }
+  const [cls, label] = fitBadge(j.fit || 0);
+  const isSel = state.selected === j.id;
+  el.innerHTML = `<div class="card pad">
+    <div class="detail-head">
+      <div><h2>${esc(j.title)}</h2><div class="muted">${esc(j.employer)}</div></div>
+      <span class="badge ${cls}">${label} · ${j.fit ?? '–'}</span>
+    </div>
+    <dl class="metagrid">
+      <div><dt>Location</dt><dd>${esc(j.location)}</dd></div>
+      <div><dt>Posted</dt><dd>${j.posted ? fmt(j.posted) : 'Not listed'}</dd></div>
+      <div><dt>Closes</dt><dd>${j.closes ? fmt(j.closes) : 'Not listed'}</dd></div>
+      <div><dt>Salary</dt><dd>${esc(j.salary || 'Not listed')}</dd></div>
+      <div><dt>Source</dt><dd>${esc(j.source)}</dd></div>
+    </dl>
+    ${j.fit_reason ? `<p class="fitnote"><strong>Why it ranked here:</strong> ${esc(j.fit_reason)}</p>` : ''}
+    <div class="btnrow" style="margin-top:14px">
+      <button class="btn primary" id="select-btn">${isSel ? 'Selected · open draft' : 'Select this job'}</button>
+      <a class="btn" href="${esc(j.url)}" target="_blank" rel="noopener">View original posting ↗</a>
+      <button class="btn" onclick="show('jobs')">Back to list</button>
+    </div>
+    <div class="posting">${esc(j.description || 'Open the original posting for the full text.')}</div>
+  </div>`;
+  document.getElementById('select-btn').addEventListener('click', () => { state.selected = j.id; persist(); show('draft'); });
+}
+
+/* ---------- Tab 3 ---------- */
+function renderDraft(){
+  const el = document.getElementById('tab-draft');
+  const j = byId(state.selected);
+  if (!j || state.applied.includes(j.id)){ el.innerHTML = emptyState('Open a job and click "Select this job" to see its cover letter and skills.'); return; }
+  const consider = `<div class="card pad consider">
+      <h3>Considerations</h3>
+      <h4 class="s">Why it fits</h4><ul>${(j.strengths||[]).map(s => `<li>${esc(s)}</li>`).join('') || '<li>Not assessed yet</li>'}</ul>
+      <h4 class="w">Watch-outs</h4><ul>${(j.warnings||[]).map(s => `<li>${esc(s)}</li>`).join('') || '<li>None noted</li>'}</ul>
+    </div>`;
+  if (!j.drafted){
+    el.innerHTML = `<div class="listhead"><div><h2>${esc(j.title)}</h2><div class="muted">${esc(j.employer)} · ${esc(j.location)}</div></div></div>
+      <div class="draftgrid">
+        <div class="card pad"><h3>No draft for this job yet</h3>
+          <p class="muted">Each morning Claude drafts letters for the top 5 new jobs, and this wasn't one of them. To get one, ask Claude: "Draft a cover letter for <em>${esc(j.title)}</em> at ${esc(j.employer)}."</p>
+          <button class="btn" id="copy-job">Copy job title, employer and link</button>
+        </div>
+        <div class="side">${consider}</div>
+      </div>`;
+    document.getElementById('copy-job').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(`Draft a cover letter for "${j.title}" at ${j.employer}: ${j.url}`); toast('Copied'); }
+      catch(e){ toast('Copy failed'); }
+    });
+    return;
+  }
+  const saved = state.savedAt[j.id];
+  el.innerHTML = `<div class="listhead">
+      <div><h2>${esc(j.title)}</h2><div class="muted">${esc(j.employer)} · ${esc(j.location)}</div></div>
+      <div class="status" id="save-status">${saved ? 'Last saved ' + new Date(saved).toLocaleString() : 'Drafted ' + (j.draft_date ? fmt(j.draft_date) : '') + ', not edited yet'}</div>
+    </div>
+    <div class="draftgrid">
+      <div class="card pad">
+        <div class="cardhead"><h3>Cover letter</h3><button class="linkbtn" id="reset-letter">Restore original draft</button></div>
+        <textarea class="letter" id="letter" aria-label="Cover letter">${esc(letterText(j))}</textarea>
+        <div class="btnrow" style="margin-top:12px">
+          <button class="btn primary" id="save-btn">Save</button>
+          <button class="btn" onclick="show('actions')">Next: Actions →</button>
+        </div>
+      </div>
+      <div class="side">
+        <div class="card pad">
+          <div class="cardhead"><h3>Resume skills section</h3><button class="linkbtn" id="copy-skills">Copy all</button></div>
+          <ol class="skills">${(j.skills||[]).map(s => `<li>${esc(s)}</li>`).join('')}</ol>
+        </div>
+        ${consider}
+      </div>
+    </div>`;
+  document.getElementById('letter').addEventListener('input', () => { document.getElementById('save-status').textContent = 'Unsaved changes'; });
+  document.getElementById('save-btn').addEventListener('click', () => saveLetter(j));
+  document.getElementById('reset-letter').addEventListener('click', () => {
+    if (!confirm('Replace your edits with the original draft?')) return;
+    delete state.letters[j.id]; delete state.savedAt[j.id]; persist(); renderDraft(); toast('Original draft restored');
+  });
+  document.getElementById('copy-skills').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText((j.skills||[]).map(s => '• ' + s).join('\n')); toast('Skills copied'); }
+    catch(e){ toast('Copy failed: select the list and copy manually'); }
+  });
+}
+function saveLetter(j){
+  const ta = document.getElementById('letter');
+  if (ta) state.letters[j.id] = ta.value;
+  state.savedAt[j.id] = Date.now(); persist();
+  const st = document.getElementById('save-status'); if (st) st.textContent = 'Last saved ' + new Date().toLocaleString();
+  toast('Saved on this device');
+}
+
+/* ---------- Tab 4 ---------- */
+function renderActions(){
+  const el = document.getElementById('tab-actions');
+  const j = byId(state.selected);
+  if (!j || state.applied.includes(j.id)){ el.innerHTML = emptyState('Select a job first, then come back here to download, save, or mark it applied.'); return; }
+  el.innerHTML = `<div class="card pad">
+      <h2>${esc(j.title)}</h2><div class="muted">${esc(j.employer)} · ${closesText(j)}</div>
+    </div>
+    <div class="actions">
+      <button class="card action" id="a-docx" ${j.drafted ? '' : 'disabled'}><strong>Download cover letter (.docx)</strong><span>${j.drafted ? 'Word file of your latest saved letter' : 'No draft for this job yet'}</span></button>
+      <button class="card action" id="a-save" ${j.drafted ? '' : 'disabled'}><strong>Save</strong><span>Save the current letter on this device</span></button>
+      <button class="card action" id="a-applied"><strong>Mark as applied</strong><span>Hides it from your list on this device</span></button>
+      <button class="card action" disabled><strong>Populate jobs from Google Sheet</strong><span>Coming later</span></button>
+      <button class="card action" id="a-back"><strong>Go back</strong><span>Return to the cover letter</span></button>
+    </div>`;
+  if (j.drafted){
+    document.getElementById('a-docx').addEventListener('click', () => downloadDocx(j));
+    document.getElementById('a-save').addEventListener('click', () => saveLetter(j));
+  }
+  document.getElementById('a-back').addEventListener('click', () => show('draft'));
+  document.getElementById('a-applied').addEventListener('click', () => {
+    if (!confirm(`Mark "${j.title}" at ${j.employer} as applied? It will be hidden from your list.`)) return;
+    state.applied.push(j.id); state.selected = null; if (state.viewing === j.id) state.viewing = null; persist();
+    show('jobs'); toast('Marked as applied');
+  });
+}
+
+async function downloadDocx(j){
+  if (!window.docx){ toast('Word export is still loading, try again in a moment'); return; }
+  const { Document, Packer, Paragraph, TextRun } = window.docx;
+  const paras = letterText(j).split(/\n/).map(line => new Paragraph({
+    children:[new TextRun({ text:line, font:'Calibri', size:22 })], spacing:{ after:120 }
+  }));
+  const doc = new Document({ sections:[{ properties:{ page:{ margin:{ top:1440, bottom:1440, left:1440, right:1440 } } }, children:paras }] });
+  const blob = await Packer.toBlob(doc);
+  const filename = `Cover_Letter_${j.employer}_${j.title}`.replace(/[^A-Za-z0-9]+/g, '_').slice(0, 90) + '.docx';
+  if (window.claude && typeof window.claude.use === 'function'){
+    const dl = await window.claude.use('downloads');
+    if (!dl){ toast('Downloads are not available in this view'); return; }
+    try { await dl.save({ filename, data: blob }); toast('Cover letter downloaded'); }
+    catch(e){ if (e && e.code !== 'declined') toast('Download did not complete'); }
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('Cover letter downloaded');
+}
+
+/* ---------- start ---------- */
+let toastTimer;
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600); }
+document.getElementById('today-label').textContent = TODAY.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+(async () => {
+  try { ENC = await loadEnc(); }
+  catch(e){ showLock(''); document.getElementById('lock-form').hidden = true;
+    document.querySelector('#lock h2').textContent = 'No jobs published yet';
+    document.querySelector('#lock p').textContent = 'The first daily run hasn\'t published a job list yet. Check back after 8am.'; return; }
+  let saved = null; try { saved = localStorage.getItem(PASS_KEY); } catch(e) {}
+  if (saved){ try { await unlock(saved, true); return; } catch(e){ try { localStorage.removeItem(PASS_KEY); } catch(_){} } }
+  showLock('');
+})();
+</script>
+</body>
+</html>

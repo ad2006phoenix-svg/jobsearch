@@ -1,0 +1,97 @@
+{
+  "_note": "Settings the 8am morning screen reads. Edit here to change what gets pulled.",
+  "schedule": {
+    "time": "08:00",
+    "timezone": "America/Detroit"
+  },
+  "area": {
+    "center": "Ann Arbor, MI",
+    "radius_miles": 35,
+    "include_remote": "Michigan only",
+    "example_cities": [
+      "Ann Arbor",
+      "Ypsilanti",
+      "Saline",
+      "Dexter",
+      "Chelsea",
+      "Brighton",
+      "Plymouth",
+      "Canton",
+      "Northville",
+      "Novi",
+      "Livonia",
+      "Dearborn"
+    ]
+  },
+  "sources": {
+    "primary": [
+      {
+        "name": "U-M Careers",
+        "url": "https://careers.umich.edu/search-jobs",
+        "method": "Official RSS feed (/search/feed/advanced)"
+      },
+      {
+        "name": "State of Michigan (MDHHS)",
+        "url": "https://www.governmentjobs.com/careers/michigan",
+        "method": "To confirm at build time; filter to MDHHS"
+      },
+      {
+        "name": "Washtenaw County (incl. CMH)",
+        "url": "https://secure.ewashtenaw.org/hrjobs/",
+        "method": "To confirm"
+      },
+      {
+        "name": "Livingston County CMH",
+        "url": "https://cmhliv.applicantpool.com/jobs/",
+        "method": "To confirm"
+      },
+      {
+        "name": "CNS Healthcare",
+        "url": "https://recruiting.ultipro.com/COM1068COMN/JobBoard/5509fc5e-5a4f-4a28-bb60-7fe9d1e0a361",
+        "method": "To confirm"
+      },
+      {
+        "name": "Eastern Michigan University",
+        "url": "https://careers.emich.edu/",
+        "method": "To confirm"
+      },
+      {
+        "name": "Washtenaw ISD",
+        "url": "https://jobs.redroverk12.com/org/1417",
+        "method": "To confirm"
+      }
+    ],
+    "secondary": [
+      "Adzuna",
+      "JSearch"
+    ]
+  },
+  "filters": {
+    "max_posting_age_days": 30,
+    "drop": [
+      "closing date passed at intake",
+      "duplicates and reposts",
+      "no named employer",
+      "very thin descriptions",
+      "staffing-spam patterns"
+    ],
+    "full_time_only": true,
+    "exclude_roles": [
+      "psychotherapist",
+      "therapist",
+      "post-MSW fellowship/training",
+      "part-time",
+      "temporary",
+      "PRN"
+    ],
+    "salary_floor_annual": 50000
+  },
+  "ranking": {
+    "primary": "fit to career profile and liked jobs in Application Tracker",
+    "boosts": {
+      "posted_within_days_3": 4,
+      "closes_within_days_7": 6
+    }
+  },
+  "daily_drafts": 5
+}
