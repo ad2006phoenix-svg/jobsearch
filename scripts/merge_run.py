@@ -25,8 +25,8 @@ NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
 
 def applied_ids(xlsx):
-    """Numeric ids found in links of tracker rows you've applied to (or interviewed for)."""
-    ids = set()
+    """{id: applied date or None} for tracker rows you've applied to (or interviewed for)."""
+    ids = {}
     if not xlsx or not os.path.exists(xlsx):
         return ids
     z = zipfile.ZipFile(xlsx)
@@ -47,10 +47,15 @@ def applied_ids(xlsx):
             elif v is not None:
                 val = v.text or ""
             cells[re.sub(r"\d", "", c.get("r"))] = val
-        status, link = cells.get("C", ""), cells.get("G", "")
+        status, link, when = cells.get("C", ""), cells.get("G", ""), cells.get("H", "")
         if re.search(r"completed|interviewed|applied", status, re.I) and link:
+            date = None
+            try:
+                date = (dt.date(1899, 12, 30) + dt.timedelta(days=int(float(when)))).isoformat()
+            except (TypeError, ValueError):
+                pass
             for m in re.findall(r"(?:job_detail/|jobs/|postingId=|opening/|opportunityId=)([\w-]+)", link):
-                ids.add(m.split("-")[0] if m.isdigit() is False and re.match(r"^\d+-", m) else m)
+                ids[m.split("-")[0] if re.match(r"^\d+-", m) else m] = date
     return ids
 
 
@@ -62,12 +67,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pipeline", required=True)
     ap.add_argument("--tracker")
+    ap.add_argument("--scored", help="scored file (default: <pipeline>/scored.json)")
     a = ap.parse_args()
     today = dt.date.today().isoformat()
     P = lambda n: os.path.join(a.pipeline, n)  # noqa: E731
 
-    cands = {j["id"]: j for j in json.load(open(P("candidates.json")))["jobs"]}
-    scored = json.load(open(P("scored.json"))).get("jobs", [])
+    try:
+        cands = {j["id"]: j for j in json.load(open(P("candidates.json")))["jobs"]}
+    except FileNotFoundError:
+        cands = {}
+    scored = json.load(open(a.scored or P("scored.json"))).get("jobs", [])
     try:
         db = json.load(open(P("jobs_db.json")))
     except FileNotFoundError:
@@ -86,8 +95,6 @@ def main():
     added = drafted = 0
     for s in scored:
         jid = s["id"]
-        if raw_id(jid) in applied:
-            continue
         base = jobs.get(jid) or dict(cands.get(jid) or {})
         if not base:
             continue
@@ -102,23 +109,28 @@ def main():
         if s.get("letter"):
             base["letter"], base["skills"] = s["letter"], s.get("skills") or []
             base["drafted"], base["draft_date"] = True, today
+            base["draft_at"] = dt.datetime.now().isoformat(timespec="seconds")
             drafted += 1
         base.setdefault("drafted", False)
         base["description"] = (base.get("description") or "")[:6000]
         jobs[jid] = base
 
-    # Drop applied jobs and ones closed long ago.
+    # Flag jobs found in the tracker as applied (kept, never deleted); drop other jobs closed long ago.
     out = []
     for j in jobs.values():
-        if raw_id(j["id"]) in applied:
+        rid = raw_id(j["id"])
+        if rid in applied:
+            j["tracker_applied"], j["applied_date"] = True, applied[rid] or j.get("applied_date")
+            out.append(j)
             continue
+        j.pop("tracker_applied", None)
         if j.get("closes") and (dt.date.today() - dt.date.fromisoformat(j["closes"])).days > KEEP_CLOSED_DAYS:
             continue
         out.append(j)
     out.sort(key=lambda j: -(j.get("fit") or 0))
     db = {"updated": dt.datetime.now().isoformat(timespec="minutes"), "jobs": out}
     json.dump(db, open(P("jobs_db.json"), "w"), indent=1, ensure_ascii=False)
-    print(json.dumps({"added": added, "drafted": drafted, "total": len(out), "skipped_applied": len(applied)}))
+    print(json.dumps({"added": added, "drafted": drafted, "total": len(out), "in_tracker": sum(1 for j in out if j.get("tracker_applied"))}))
 
 
 if __name__ == "__main__":

@@ -116,6 +116,21 @@ textarea.letter:focus{outline:2px solid var(--accent);outline-offset:1px}
 .action span{font-size:13.5px;color:var(--muted)}
 .empty{text-align:center;padding:48px 20px}
 
+/* Tab 5 */
+.savedsec{margin-bottom:32px}
+.tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+table.tracker{border-collapse:collapse;width:100%;min-width:980px;font-size:13.5px}
+table.tracker th,table.tracker td{padding:9px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+table.tracker th{background:var(--surface-2);font-weight:600;white-space:nowrap}
+table.tracker tr:last-child td{border-bottom:0}
+table.tracker a{color:var(--accent);font-weight:600;text-decoration:none}
+table.tracker td .linkbtn{text-align:left;font-size:14px}
+table.tracker th:nth-child(2),table.tracker td:nth-child(2){min-width:240px}
+table.tracker th:nth-child(6),table.tracker td:nth-child(6){min-width:170px}
+.rowbtns{display:flex;flex-direction:column;gap:6px;align-items:flex-start;white-space:nowrap}
+.notice{background:var(--accent-soft);border-radius:10px;padding:12px 14px;font-size:14px;margin:12px 0 0;line-height:1.6}
+.notice code{background:var(--surface);padding:2px 6px;border-radius:6px;font-size:13px}
+
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;max-width:calc(100% - 32px)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 footer{padding:32px 0;color:var(--muted);font-size:13px}
@@ -155,6 +170,7 @@ footer{padding:32px 0;color:var(--muted);font-size:13px}
       <button role="tab" data-tab="detail"><span class="n">2</span>Job Detail</button>
       <button role="tab" data-tab="draft"><span class="n">3</span>Application Draft</button>
       <button role="tab" data-tab="actions"><span class="n">4</span>Actions</button>
+      <button role="tab" data-tab="saved"><span class="n">5</span>Applied &amp; Hidden</button>
     </nav>
 
     <section id="tab-jobs" role="tabpanel">
@@ -177,8 +193,9 @@ footer{padding:32px 0;color:var(--muted);font-size:13px}
     <section id="tab-detail" role="tabpanel" hidden></section>
     <section id="tab-draft" role="tabpanel" hidden></section>
     <section id="tab-actions" role="tabpanel" hidden></section>
+    <section id="tab-saved" role="tabpanel" hidden></section>
 
-    <footer>Updated every morning from U-M Careers, State of Michigan, Washtenaw County, Livingston County CMH, CNS Healthcare, EMU and Washtenaw ISD. Jobs older than 30 days, part-time roles and closed postings are filtered out. Applied jobs are hidden on this device. <button class="linkbtn" id="lock-now">Lock</button></footer>
+    <footer>Updated every morning from U-M Careers, State of Michigan, Washtenaw County, Livingston County CMH, CNS Healthcare, EMU and Washtenaw ISD. Jobs older than 30 days, part-time roles and closed postings are filtered out. Applied and hidden jobs move to the Applied &amp; Hidden tab (saved on this device). <button class="linkbtn" id="lock-now">Lock</button></footer>
   </div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -190,16 +207,25 @@ const DAY = 864e5;
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
 const iso = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
 const TODAY_ISO = iso(TODAY);
-const parse = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const parse = s => { const [y,m,d] = s.slice(0,10).split('-').map(Number); return new Date(y, m-1, d); };
 const daysFrom = s => Math.round((parse(s) - TODAY) / DAY);
 const fmt = s => parse(s).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+const usDate = s => { if (!s) return ''; const d = parse(s); return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`; };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 /* ---------- storage (per device) ---------- */
 const KEY = 'jsh-state-v2', PASS_KEY = 'jsh-pass';
-let state = { selected:null, viewing:null, applied:[], letters:{}, savedAt:{} };
+let state = { selected:null, viewing:null, applied:{}, hidden:{}, letters:{}, letterBase:{}, savedAt:{}, copied:{} };
 try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) state = { ...state, ...s }; } catch(e) {}
-function persist(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {} }
+// Older versions stored applied jobs as a plain list of ids.
+if (Array.isArray(state.applied)) state.applied = Object.fromEntries(state.applied.map(id => [id, { date: TODAY_ISO }]));
+['applied','hidden','letters','letterBase','savedAt','copied'].forEach(k => { if (!state[k] || typeof state[k] !== 'object') state[k] = {}; });
+function persist(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) { toast('Could not save on this device'); } }
+
+/* Applied/hidden jobs keep a copy here so they never disappear, even after the daily list drops them. */
+const SNAP_FIELDS = ['id','source','title','employer','location','url','posted','closes','salary','fit','fit_reason','added',
+  'drafted','draft_date','draft_at','letter','skills','strengths','warnings','description'];
+const snap = j => Object.fromEntries(SNAP_FIELDS.map(k => [k, j[k]]));
 
 /* ---------- data: encrypted file published by the daily run ---------- */
 let JOBS = [], UPDATED = null;
@@ -223,6 +249,15 @@ async function loadEnc(){
 async function unlock(pass, remember){
   const data = await decrypt(ENC, pass);
   JOBS = data.jobs || []; UPDATED = data.updated;
+  // Keep saved copies of applied/hidden jobs up to date with the latest list.
+  let changed = false;
+  for (const bucket of [state.applied, state.hidden]){
+    for (const id of Object.keys(bucket)){
+      const j = JOBS.find(x => x.id === id);
+      if (j){ bucket[id].snap = snap(j); changed = true; }
+    }
+  }
+  if (changed) persist();
   if (remember){ try { localStorage.setItem(PASS_KEY, pass); } catch(e) {} }
   document.getElementById('lock').hidden = true;
   document.getElementById('app').hidden = false;
@@ -250,9 +285,15 @@ document.getElementById('lock-now').addEventListener('click', () => {
   JOBS = []; document.getElementById('pass').value = ''; showLock();
 });
 
-const byId = id => JOBS.find(j => j.id === id);
-const letterText = j => state.letters[j.id] ?? j.letter ?? '';
+const byId = id => JOBS.find(j => j.id === id) || state.applied[id]?.snap || state.hidden[id]?.snap || null;
 const isClosed = j => j.closes && daysFrom(j.closes) < 0;
+const appliedInfo = j => state.applied[j.id] || (j.tracker_applied ? { date: j.applied_date, fromTracker: true } : null);
+const statusOf = j => appliedInfo(j) ? 'applied' : state.hidden[j.id] ? 'hidden' : 'open';
+function letterText(j){
+  const mine = state.letters[j.id];
+  return mine != null ? mine : (j.letter || '');
+}
+const newerDraft = j => state.letters[j.id] != null && j.draft_at && state.letterBase[j.id] !== j.draft_at;
 
 /* ---------- ranking: fit, boosted for recent / closing soon; closed jobs sink ---------- */
 function rankScore(j){
@@ -275,14 +316,14 @@ function closesText(j){
 }
 
 /* ---------- tabs ---------- */
-const TABS = ['jobs','detail','draft','actions'];
+const TABS = ['jobs','detail','draft','actions','saved'];
 function show(tab){
   if (!TABS.includes(tab)) tab = 'jobs';
   TABS.forEach(t => {
     document.getElementById('tab-' + t).hidden = t !== tab;
     document.querySelector(`[data-tab="${t}"]`).setAttribute('aria-selected', t === tab);
   });
-  ({jobs:renderList, detail:renderDetail, draft:renderDraft, actions:renderActions})[tab]();
+  ({jobs:renderList, detail:renderDetail, draft:renderDraft, actions:renderActions, saved:renderSaved})[tab]();
   if (location.hash !== '#' + tab) history.replaceState(null, '', '#' + tab);
   window.scrollTo(0, 0);
 }
@@ -290,11 +331,47 @@ document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click',
 document.getElementById('q').addEventListener('input', renderList);
 document.getElementById('view').addEventListener('change', renderList);
 
+/* ---------- shared actions ---------- */
+async function copyText(text, okMsg){
+  try { await navigator.clipboard.writeText(text); toast(okMsg); return true; }
+  catch(e){ toast('Copy failed: your browser blocked the clipboard'); return false; }
+}
+function markApplied(j){
+  if (!confirm(`Mark "${j.title}" at ${j.employer} as applied? It moves to the Applied & Hidden tab.`)) return;
+  state.applied[j.id] = { date: TODAY_ISO, snap: snap(j) };
+  delete state.hidden[j.id];
+  if (state.selected === j.id) state.selected = null;
+  persist(); show('saved'); toast('Marked as applied. Copy it into your tracker from here.');
+}
+function hideJob(j){
+  state.hidden[j.id] = { date: TODAY_ISO, snap: snap(j) };
+  if (state.selected === j.id) state.selected = null;
+  persist(); show('jobs'); toast('Hidden. You can restore it from Applied & Hidden.');
+}
+function restoreJob(id){
+  delete state.applied[id]; delete state.hidden[id]; persist();
+  toast('Restored to your job list');
+}
+const draftCommand = j => `/draft-letter ${j.id}`;
+function generatePanel(j){
+  return `<div class="notice" id="gen-help" hidden>
+      <strong>Copied:</strong> <code>${esc(draftCommand(j))}</code><br>
+      1. Open the Claude app in your <em>Claude</em> folder and paste it into a new message.<br>
+      2. Claude writes the letter and 9 skills bullets, then publishes them.<br>
+      3. In about 5 minutes, reload this page. The draft appears on the Application Draft tab.
+    </div>`;
+}
+async function generateLetter(j){
+  if (await copyText(draftCommand(j), 'Command copied. Paste it into Claude.')){
+    const h = document.getElementById('gen-help'); if (h) h.hidden = false;
+  }
+}
+
 /* ---------- Tab 1 ---------- */
 function renderList(){
   const q = document.getElementById('q').value.trim().toLowerCase();
   const view = document.getElementById('view').value;
-  const open = JOBS.filter(j => !state.applied.includes(j.id));
+  const open = JOBS.filter(j => statusOf(j) === 'open');
   let shown = open.filter(j => !q || (j.title + ' ' + j.employer).toLowerCase().includes(q));
   if (view === 'drafted') shown = shown.filter(j => j.drafted);
   if (view === 'new') shown = shown.filter(j => j.added === TODAY_ISO);
@@ -333,17 +410,25 @@ function renderList(){
 
 /* ---------- Tab 2 ---------- */
 function emptyState(msg){ return `<div class="card empty"><h2>Nothing here yet</h2><p class="muted">${msg}</p><button class="btn primary" onclick="show('jobs')">Go to Today's Jobs</button></div>`; }
+function statusNote(j){
+  const a = appliedInfo(j);
+  if (a) return `<p class="notice">You applied${a.date ? ' on ' + fmt(a.date) : ''}${a.fromTracker ? ' (from your Application Tracker)' : ''}.</p>`;
+  if (state.hidden[j.id]) return `<p class="notice">You hid this job on ${fmt(state.hidden[j.id].date)}.</p>`;
+  return '';
+}
 function renderDetail(){
   const el = document.getElementById('tab-detail');
   const j = byId(state.viewing) || byId(state.selected);
   if (!j){ el.innerHTML = emptyState('Pick a job on Today\'s Jobs to see the full posting.'); return; }
   const [cls, label] = fitBadge(j.fit || 0);
   const isSel = state.selected === j.id;
+  const st = statusOf(j);
   el.innerHTML = `<div class="card pad">
     <div class="detail-head">
       <div><h2>${esc(j.title)}</h2><div class="muted">${esc(j.employer)}</div></div>
       <span class="badge ${cls}">${label} · ${j.fit ?? '–'}</span>
     </div>
+    ${statusNote(j)}
     <dl class="metagrid">
       <div><dt>Location</dt><dd>${esc(j.location)}</dd></div>
       <div><dt>Posted</dt><dd>${j.posted ? fmt(j.posted) : 'Not listed'}</dd></div>
@@ -355,18 +440,21 @@ function renderDetail(){
     <div class="btnrow" style="margin-top:14px">
       <button class="btn primary" id="select-btn">${isSel ? 'Selected · open draft' : 'Select this job'}</button>
       <a class="btn" href="${esc(j.url)}" target="_blank" rel="noopener">View original posting ↗</a>
+      ${st === 'open' ? '<button class="btn" id="hide-btn">Hide this job</button>' : st === 'hidden' ? '<button class="btn" id="unhide-btn">Unhide</button>' : ''}
       <button class="btn" onclick="show('jobs')">Back to list</button>
     </div>
     <div class="posting">${esc(j.description || 'Open the original posting for the full text.')}</div>
   </div>`;
   document.getElementById('select-btn').addEventListener('click', () => { state.selected = j.id; persist(); show('draft'); });
+  document.getElementById('hide-btn')?.addEventListener('click', () => hideJob(j));
+  document.getElementById('unhide-btn')?.addEventListener('click', () => { restoreJob(j.id); renderDetail(); });
 }
 
 /* ---------- Tab 3 ---------- */
 function renderDraft(){
   const el = document.getElementById('tab-draft');
   const j = byId(state.selected);
-  if (!j || state.applied.includes(j.id)){ el.innerHTML = emptyState('Open a job and click "Select this job" to see its cover letter and skills.'); return; }
+  if (!j){ el.innerHTML = emptyState('Open a job and click "Select this job" to see its cover letter and skills.'); return; }
   const consider = `<div class="card pad consider">
       <h3>Considerations</h3>
       <h4 class="s">Why it fits</h4><ul>${(j.strengths||[]).map(s => `<li>${esc(s)}</li>`).join('') || '<li>Not assessed yet</li>'}</ul>
@@ -376,15 +464,13 @@ function renderDraft(){
     el.innerHTML = `<div class="listhead"><div><h2>${esc(j.title)}</h2><div class="muted">${esc(j.employer)} · ${esc(j.location)}</div></div></div>
       <div class="draftgrid">
         <div class="card pad"><h3>No draft for this job yet</h3>
-          <p class="muted">Each morning Claude drafts letters for the top 5 new jobs, and this wasn't one of them. To get one, ask Claude: "Draft a cover letter for <em>${esc(j.title)}</em> at ${esc(j.employer)}."</p>
-          <button class="btn" id="copy-job">Copy job title, employer and link</button>
+          <p class="muted">Each morning Claude drafts letters for the top 5 new jobs. You can have one written for this job too.</p>
+          <button class="btn primary" id="gen-btn">Generate custom cover letter</button>
+          ${generatePanel(j)}
         </div>
         <div class="side">${consider}</div>
       </div>`;
-    document.getElementById('copy-job').addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(`Draft a cover letter for "${j.title}" at ${j.employer}: ${j.url}`); toast('Copied'); }
-      catch(e){ toast('Copy failed'); }
-    });
+    document.getElementById('gen-btn').addEventListener('click', () => generateLetter(j));
     return;
   }
   const saved = state.savedAt[j.id];
@@ -392,7 +478,8 @@ function renderDraft(){
       <div><h2>${esc(j.title)}</h2><div class="muted">${esc(j.employer)} · ${esc(j.location)}</div></div>
       <div class="status" id="save-status">${saved ? 'Last saved ' + new Date(saved).toLocaleString() : 'Drafted ' + (j.draft_date ? fmt(j.draft_date) : '') + ', not edited yet'}</div>
     </div>
-    <div class="draftgrid">
+    ${newerDraft(j) ? `<div class="notice">A newer draft from ${fmt(j.draft_date)} is available. You're seeing your saved edits. <button class="linkbtn" id="use-new">Use the new draft</button></div>` : ''}
+    <div class="draftgrid" style="margin-top:12px">
       <div class="card pad">
         <div class="cardhead"><h3>Cover letter</h3><button class="linkbtn" id="reset-letter">Restore original draft</button></div>
         <textarea class="letter" id="letter" aria-label="Cover letter">${esc(letterText(j))}</textarea>
@@ -411,18 +498,22 @@ function renderDraft(){
     </div>`;
   document.getElementById('letter').addEventListener('input', () => { document.getElementById('save-status').textContent = 'Unsaved changes'; });
   document.getElementById('save-btn').addEventListener('click', () => saveLetter(j));
+  const resetTo = () => { delete state.letters[j.id]; delete state.letterBase[j.id]; delete state.savedAt[j.id]; persist(); renderDraft(); };
   document.getElementById('reset-letter').addEventListener('click', () => {
     if (!confirm('Replace your edits with the original draft?')) return;
-    delete state.letters[j.id]; delete state.savedAt[j.id]; persist(); renderDraft(); toast('Original draft restored');
+    resetTo(); toast('Original draft restored');
   });
-  document.getElementById('copy-skills').addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText((j.skills||[]).map(s => '• ' + s).join('\n')); toast('Skills copied'); }
-    catch(e){ toast('Copy failed: select the list and copy manually'); }
+  document.getElementById('use-new')?.addEventListener('click', () => {
+    if (!confirm('Replace your saved edits with the new draft?')) return;
+    resetTo(); toast('Showing the new draft');
   });
+  document.getElementById('copy-skills').addEventListener('click', () =>
+    copyText((j.skills||[]).map(s => '• ' + s).join('\n'), 'Skills copied'));
 }
 function saveLetter(j){
   const ta = document.getElementById('letter');
   if (ta) state.letters[j.id] = ta.value;
+  state.letterBase[j.id] = j.draft_at || null;
   state.savedAt[j.id] = Date.now(); persist();
   const st = document.getElementById('save-status'); if (st) st.textContent = 'Last saved ' + new Date().toLocaleString();
   toast('Saved on this device');
@@ -432,27 +523,36 @@ function saveLetter(j){
 function renderActions(){
   const el = document.getElementById('tab-actions');
   const j = byId(state.selected);
-  if (!j || state.applied.includes(j.id)){ el.innerHTML = emptyState('Select a job first, then come back here to download, save, or mark it applied.'); return; }
+  if (!j){ el.innerHTML = emptyState('Select a job first, then come back here to download, generate, or mark it applied.'); return; }
+  const st = statusOf(j);
   el.innerHTML = `<div class="card pad">
       <h2>${esc(j.title)}</h2><div class="muted">${esc(j.employer)} · ${closesText(j)}</div>
+      ${statusNote(j)}
     </div>
     <div class="actions">
       <button class="card action" id="a-docx" ${j.drafted ? '' : 'disabled'}><strong>Download cover letter (.docx)</strong><span>${j.drafted ? 'Word file of your latest saved letter' : 'No draft for this job yet'}</span></button>
+      <button class="card action" id="a-gen"><strong>${j.drafted ? 'Regenerate cover letter' : 'Generate custom cover letter'}</strong><span>Copies a command to paste into Claude; the letter appears here in about 5 minutes</span></button>
       <button class="card action" id="a-save" ${j.drafted ? '' : 'disabled'}><strong>Save</strong><span>Save the current letter on this device</span></button>
-      <button class="card action" id="a-applied"><strong>Mark as applied</strong><span>Hides it from your list on this device</span></button>
+      ${st === 'applied'
+        ? `<button class="card action" id="a-unapply" ${appliedInfo(j).fromTracker ? 'disabled' : ''}><strong>Undo applied</strong><span>${appliedInfo(j).fromTracker ? 'Remove it from your tracker to undo' : 'Move it back to your job list'}</span></button>`
+        : `<button class="card action" id="a-applied"><strong>Mark as applied</strong><span>Moves it to Applied & Hidden, ready to copy into your tracker</span></button>`}
+      ${st === 'hidden'
+        ? `<button class="card action" id="a-unhide"><strong>Unhide</strong><span>Move it back to your job list</span></button>`
+        : st === 'open' ? `<button class="card action" id="a-hide"><strong>Hide this job</strong><span>Not interested. Find it later in Applied & Hidden</span></button>` : ''}
       <button class="card action" disabled><strong>Populate jobs from Google Sheet</strong><span>Coming later</span></button>
       <button class="card action" id="a-back"><strong>Go back</strong><span>Return to the cover letter</span></button>
-    </div>`;
+    </div>
+    ${generatePanel(j)}`;
   if (j.drafted){
     document.getElementById('a-docx').addEventListener('click', () => downloadDocx(j));
     document.getElementById('a-save').addEventListener('click', () => saveLetter(j));
   }
+  document.getElementById('a-gen').addEventListener('click', () => generateLetter(j));
   document.getElementById('a-back').addEventListener('click', () => show('draft'));
-  document.getElementById('a-applied').addEventListener('click', () => {
-    if (!confirm(`Mark "${j.title}" at ${j.employer} as applied? It will be hidden from your list.`)) return;
-    state.applied.push(j.id); state.selected = null; if (state.viewing === j.id) state.viewing = null; persist();
-    show('jobs'); toast('Marked as applied');
-  });
+  document.getElementById('a-applied')?.addEventListener('click', () => markApplied(j));
+  document.getElementById('a-unapply')?.addEventListener('click', () => { restoreJob(j.id); renderActions(); });
+  document.getElementById('a-hide')?.addEventListener('click', () => hideJob(j));
+  document.getElementById('a-unhide')?.addEventListener('click', () => { restoreJob(j.id); renderActions(); });
 }
 
 async function downloadDocx(j){
@@ -478,9 +578,101 @@ async function downloadDocx(j){
   toast('Cover letter downloaded');
 }
 
+/* ---------- Tab 5: Applied & Hidden ---------- */
+const TRACKER_COLS = ['Priority?','Position','Status','Type','Due date','Agency Name/Type','Links','Date Applied, if applicable','Date Final Contact, if applicable'];
+function agencyShort(j){
+  const e = j.employer || '', t = j.title || '', loc = j.location || '';
+  if (/^University of Michigan/.test(e)) return /Michigan Medicine/i.test(e) ? 'Michigan Medicine' : 'UM';
+  if (/^State of Michigan/.test(e)) return e.replace(/^State of Michigan\s*[–-]\s*/, '').replace(/^Health and Human Services/, 'MDHHS');
+  if (e === 'Washtenaw County') return /Community Mental Health/i.test(t) ? 'Washtenaw County CMH' : 'Washtenaw County';
+  if (/Livingston County Community Mental Health/.test(e)) return 'Livingston County CMH';
+  if (/^CNS/.test(e)){ const c = loc.split(',')[0].trim(); return c ? `${c} CNS` : 'CNS Healthcare'; }
+  if (/Eastern Michigan/.test(e)) return 'EMU';
+  return e;
+}
+const trackerRow = (j, date) => [(j.fit || 0) >= 80 ? 'Yes' : '–', j.title, 'Completed, Pending', 'Job', usDate(j.closes),
+  agencyShort(j), j.url || '', usDate(date), ''];
+const tsv = rows => rows.map(r => r.map(c => String(c ?? '').replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+
+function appliedList(){
+  const items = [];
+  const seen = new Set();
+  for (const [id, a] of Object.entries(state.applied)){
+    const j = byId(id); if (!j) continue;
+    items.push({ j, date: a.date, fromTracker: false }); seen.add(id);
+  }
+  for (const j of JOBS) if (j.tracker_applied && !seen.has(j.id)) items.push({ j, date: j.applied_date, fromTracker: true });
+  return items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+}
+function renderSaved(){
+  const el = document.getElementById('tab-saved');
+  const applied = appliedList();
+  const toCopy = applied.filter(x => !x.fromTracker && !state.copied[x.j.id]);
+  const hidden = Object.entries(state.hidden).map(([id, h]) => ({ j: byId(id), date: h.date })).filter(x => x.j)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  const rows = applied.map(({ j, date, fromTracker }) => {
+    const r = trackerRow(j, date);
+    const tag = fromTracker ? '<span class="badge b-fair">In your tracker</span>'
+      : state.copied[j.id] ? `<span class="badge b-draft">Copied ${fmt(state.copied[j.id])}</span>` : '<span class="badge b-new">Not copied yet</span>';
+    return `<tr>
+      <td>${esc(r[0])}</td>
+      <td><button class="linkbtn" data-open="${esc(j.id)}">${esc(r[1])}</button><div style="margin-top:4px">${tag}</div></td>
+      <td>${esc(r[2])}</td><td>${esc(r[3])}</td><td>${esc(r[4])}</td><td>${esc(r[5])}</td>
+      <td>${j.url ? `<a href="${esc(j.url)}" target="_blank" rel="noopener">Posting ↗</a>` : ''}</td>
+      <td>${esc(r[7])}</td><td>${esc(r[8])}</td>
+      <td><div class="rowbtns">
+        ${fromTracker ? '' : `<button class="linkbtn" data-copyrow="${esc(j.id)}">Copy row</button>
+        <button class="linkbtn" data-restore="${esc(j.id)}">Undo applied</button>`}
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="savedsec">
+      <div class="listhead">
+        <div><h2>Applied (${applied.length})</h2>
+          <div class="muted">Same columns as your Application Tracker. Copy, then click the first empty Priority cell in your tracker and paste.</div></div>
+        <div class="btnrow">
+          <button class="btn primary" id="copy-new" ${toCopy.length ? '' : 'disabled'}>Copy ${toCopy.length} new row${toCopy.length === 1 ? '' : 's'}</button>
+          <button class="btn" id="copy-all" ${applied.length ? '' : 'disabled'}>Copy all</button>
+        </div>
+      </div>
+      <label class="check muted" style="display:flex;gap:8px;align-items:center;font-size:14px;margin:0 0 10px">
+        <input type="checkbox" id="with-headers"> Include column headers</label>
+      ${applied.length ? `<div class="tablewrap"><table class="tracker">
+        <thead><tr>${TRACKER_COLS.map(c => `<th>${esc(c)}</th>`).join('')}<th></th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`
+        : '<div class="card empty muted">No applied jobs yet. Use "Mark as applied" on the Actions tab.</div>'}
+    </div>
+    <div class="savedsec">
+      <h2>Hidden (${hidden.length})</h2>
+      ${hidden.length ? `<ol class="joblist">${hidden.map(({ j, date }) => `<li class="card pad" style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
+          <div><button class="linkbtn" style="font-size:15px" data-open="${esc(j.id)}">${esc(j.title)}</button>
+            <div class="muted" style="font-size:13.5px">${esc(j.employer)} · hidden ${fmt(date)} · ${closesText(j)}</div></div>
+          <button class="btn" data-restore="${esc(j.id)}">Restore</button></li>`).join('')}</ol>`
+        : '<div class="card empty muted">No hidden jobs. Use "Hide this job" on a job you\'re not interested in.</div>'}
+    </div>`;
+
+  const withHead = rows => document.getElementById('with-headers').checked ? [TRACKER_COLS, ...rows] : rows;
+  const markCopied = list => { list.forEach(x => { if (!x.fromTracker) state.copied[x.j.id] = TODAY_ISO; }); persist(); renderSaved(); };
+  document.getElementById('copy-new')?.addEventListener('click', async () => {
+    if (await copyText(tsv(withHead(toCopy.map(x => trackerRow(x.j, x.date)))), `Copied ${toCopy.length} row${toCopy.length === 1 ? '' : 's'}. Paste into your tracker.`)) markCopied(toCopy);
+  });
+  document.getElementById('copy-all')?.addEventListener('click', async () => {
+    if (await copyText(tsv(withHead(applied.map(x => trackerRow(x.j, x.date)))), `Copied ${applied.length} rows`)) markCopied(applied);
+  });
+  el.querySelectorAll('[data-copyrow]').forEach(b => b.addEventListener('click', async () => {
+    const x = applied.find(a => a.j.id === b.dataset.copyrow);
+    if (await copyText(tsv(withHead([trackerRow(x.j, x.date)])), 'Row copied')) markCopied([x]);
+  }));
+  el.querySelectorAll('[data-restore]').forEach(b => b.addEventListener('click', () => { restoreJob(b.dataset.restore); renderSaved(); }));
+  el.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => { state.viewing = b.dataset.open; persist(); show('detail'); }));
+}
+
 /* ---------- start ---------- */
 let toastTimer;
-function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600); }
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3000); }
 document.getElementById('today-label').textContent = TODAY.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
 (async () => {
   try { ENC = await loadEnc(); }

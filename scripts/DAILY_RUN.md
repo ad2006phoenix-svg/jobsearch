@@ -17,7 +17,7 @@ If a source reports an error, continue with the rest and note it in the run log.
 - For exact resume wording, read the resume pages of the newest resume PDF in `job_search/`.
 
 ## 3. Score new candidates
-For every job in `candidates.json` whose `id` isn't already in `jobs_db.json`:
+For every job in `candidates.json` whose `id` isn't already in `jobs_db.json` (skip jobs whose link is already in the Application Tracker; don't draft letters for them):
 - Hard-exclude (leave it out of scored.json): psychotherapist or therapist-titled roles, post-MSW fellowships or training programs, part-time, temporary or PRN, and anything plainly unrelated to the profile (trades, clinical medicine, IT, finance, food service).
 - `fit` 0–100 using profile section 4. 80+ means strong (a target role family, entry-to-mid level, and an employer you like). Below 45 is dropped automatically.
 - `fit_reason`: one sentence on why it ranks where it does.

@@ -29,7 +29,7 @@ REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 # Fields the site needs; anything else in the db stays local.
 SITE_FIELDS = ["id", "source", "title", "employer", "location", "url", "posted", "closes", "salary",
                "salary_min", "fit", "fit_reason", "added", "drafted", "draft_date", "letter", "skills",
-               "strengths", "warnings", "description"]
+               "strengths", "warnings", "description", "draft_at", "tracker_applied", "applied_date"]
 
 
 def b64(b):
